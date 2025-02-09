@@ -32,8 +32,29 @@ class LogisticRegression:
         Returns:
             None: The function updates the model weights in place.
         """
-        # TODO: Implement gradient-descent algorithm to optimize logistic regression weights
-        return
+        # Implement gradient-descent algorithm to optimize logistic regression weights
+        # Step 1: Initialize weights
+        self.weights = self.initialize_parameters(features.shape[1], self.random_state)
+        
+        for epoch in range(epochs):
+            # Step 2: Compute predictions using current weights and sigmoid function
+            predictions = self.sigmoid(features @ self.weights[:-1] + self.weights[-1])
+
+            # Step 3: Calculate the binary cross-entropy loss
+            loss = self.binary_cross_entropy_loss(predictions, labels)
+
+            # Step 4: Compute the gradient of the loss with respect to the weights
+            error = predictions - labels
+            gradient = features.T @ error / len(features)
+            gradient_bias = error.sum() / len(features)
+
+            # Step 5: Update the weights by taking a step in the direction opposite to the gradient
+            self.weights[:-1] -= learning_rate * gradient
+            self.weights[-1] -= learning_rate * gradient_bias
+
+            # Optionally, print the loss at regular intervals (every 10 epochs in this case)
+            if epoch % 10 == 0:
+                print(f"Epoch {epoch}/{epochs} - Loss: {loss.item():.4f}")
 
     def predict(self, features: torch.Tensor, cutoff: float = 0.5) -> torch.Tensor:
         """
@@ -46,7 +67,12 @@ class LogisticRegression:
         Returns:
             torch.Tensor: Predicted class labels (0 or 1).
         """
-        decisions: torch.Tensor = None
+            # Get the predicted probabilities using predict_proba
+        probabilities = self.predict_proba(features)
+        
+        # Convert probabilities to binary class labels based on the cutoff
+        decisions = (probabilities >= cutoff).float()
+        
         return decisions
 
     def predict_proba(self, features: torch.Tensor) -> torch.Tensor:
@@ -65,7 +91,9 @@ class LogisticRegression:
         if self.weights is None:
             raise ValueError("Model not trained. Call the 'train' method first.")
         
-        probabilities: torch.Tensor = None
+        # Compute the linear combination of features and weights, then apply the sigmoid function
+        linear_combination = features @ self.weights[:-1] + self.weights[-1]
+        probabilities = self.sigmoid(linear_combination)
         
         return probabilities
 
@@ -85,7 +113,7 @@ class LogisticRegression:
         """
         torch.manual_seed(random_state)
         
-        params: torch.Tensor = None
+        params: torch.Tensor = torch.zeros(dim + 1)  
         
         return params
 
@@ -103,7 +131,7 @@ class LogisticRegression:
         Returns:
             torch.Tensor: The sigmoid of z.
         """
-        result: torch.Tensor = None
+        result: torch.Tensor =  1 / (1 + torch.exp(-z))
         return result
 
     @staticmethod
@@ -123,7 +151,10 @@ class LogisticRegression:
         Returns:
             torch.Tensor: The computed binary cross-entropy loss.
         """
-        ce_loss: torch.Tensor = None
+        ce_loss: torch.Tensor = torch.mean((-1)* (targets * torch.log(predictions) + (1 - targets) * torch.log(1 - predictions)))
+
+        
+        # Return the average loss over all samples
         return ce_loss
 
     @property
