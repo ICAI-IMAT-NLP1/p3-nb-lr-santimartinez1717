@@ -34,19 +34,19 @@ class LogisticRegression:
         """
         # Implement gradient-descent algorithm to optimize logistic regression weights
         # Step 1: Initialize weights
-        self.weights = self.initialize_parameters(features.shape[1], self.random_state)
+        self.weights = self.initialize_parameters(features.size(1), self.random_state)
         
         for epoch in range(epochs):
             # Step 2: Compute predictions using current weights and sigmoid function
-            predictions = self.sigmoid(features @ self.weights[:-1] + self.weights[-1])
+            predictions = self.predict_proba(features)
 
             # Step 3: Calculate the binary cross-entropy loss
             loss = self.binary_cross_entropy_loss(predictions, labels)
 
             # Step 4: Compute the gradient of the loss with respect to the weights
             error = predictions - labels
-            gradient = features.T @ error / len(features)
-            gradient_bias = error.sum() / len(features)
+            gradient = features.T @ error / features.size(0)
+            gradient_bias = torch.sum(error) / features.size(0)
 
             # Step 5: Update the weights by taking a step in the direction opposite to the gradient
             self.weights[:-1] -= learning_rate * gradient
@@ -55,6 +55,7 @@ class LogisticRegression:
             # Optionally, print the loss at regular intervals (every 10 epochs in this case)
             if epoch % 10 == 0:
                 print(f"Epoch {epoch}/{epochs} - Loss: {loss.item():.4f}")
+                print(self.weights)
 
     def predict(self, features: torch.Tensor, cutoff: float = 0.5) -> torch.Tensor:
         """
@@ -113,7 +114,8 @@ class LogisticRegression:
         """
         torch.manual_seed(random_state)
         
-        params: torch.Tensor = torch.zeros(dim + 1)  
+        params: torch.Tensor = torch.randn(size=(dim + 1,))
+
         
         return params
 

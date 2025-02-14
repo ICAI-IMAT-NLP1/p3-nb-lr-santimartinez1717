@@ -19,7 +19,7 @@ def read_sentiment_examples(infile: str) -> List[SentimentExample]:
         A list of SentimentExample objects parsed from the file.
     """
     # Open the file, go line by line, separate sentence and label, tokenize the sentence and create SentimentExample object
-    examples: List[SentimentExample] = None
+    examples: List[SentimentExample] = []
 
     with open(infile, 'r') as file:
         for line in file:
@@ -50,13 +50,13 @@ def build_vocab(examples: List[SentimentExample]) -> Dict[str, int]:
         Dict[str, int]: A dictionary representing the vocabulary, where each word is mapped to a unique index.
     """
     # Count unique words in all the examples from the training set
-    vocab: Dict[str, int] = None
+    
     unique_words = set()
 
     for example in examples:
         unique_words.update(example.words)
 
-    vocab = {word: idx for idx, word in enumerate(sorted(unique_words))}
+    vocab: Dict[str, int]  = {word: idx for idx, word in enumerate(sorted(unique_words))}
 
 
     return vocab

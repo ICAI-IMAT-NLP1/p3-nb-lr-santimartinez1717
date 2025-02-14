@@ -15,9 +15,9 @@ class NaiveBayes:
         """
         Initializes the Naive Bayes classifier
         """
-        self.class_priors: Dict[int, torch.Tensor] = None
-        self.conditional_probabilities: Dict[int, torch.Tensor] = None
-        self.vocab_size: int = None
+        self.class_priors: Dict[int, torch.Tensor] = {}
+        self.conditional_probabilities: Dict[int, torch.Tensor] = {}
+        self.vocab_size: int = 0
 
     def fit(self, features: torch.Tensor, labels: torch.Tensor, delta: float = 1.0):
         """
@@ -29,9 +29,9 @@ class NaiveBayes:
             delta (float): Smoothing parameter for Laplace smoothing.
         """
         # Estimate class priors and conditional probabilities of the bag of words 
-        self.class_priors = estimate_class_priors(labels)
-        self.vocab_size = None # Shape of the probability tensors, useful for predictions and conditional probabilities
-        self.conditional_probabilities = estimate_conditional_probabilities(features, labels, delta)
+        self.class_priors = self.estimate_class_priors(labels)
+        self.vocab_size = features.shape[1] # Shape of the probability tensors, useful for predictions and conditional probabilities
+        self.conditional_probabilities = self.estimate_conditional_probabilities(features, labels, delta)
         
 
     def estimate_class_priors(self, labels: torch.Tensor) -> Dict[int, torch.Tensor]:
@@ -45,7 +45,7 @@ class NaiveBayes:
             Dict[int, torch.Tensor]: A dictionary mapping class labels to their estimated prior probabilities.
         """
         # Count number of samples for each output class and divide by total of samples
-        labels = labels.flatten()
+        labels = labels.flatten().int()
 
         # Get the total number of examples
         total_samples = labels.size(0)
@@ -54,7 +54,7 @@ class NaiveBayes:
         class_counts = torch.bincount(labels)
 
         # Calculate class priors: P(class) = count(class) / total_samples
-        class_priors = {class_label.item(): class_count.float() / total_samples
+        class_priors = {class_label: class_count.float() / total_samples
                         for class_label, class_count in enumerate(class_counts)}
 
         return class_priors
@@ -78,21 +78,22 @@ class NaiveBayes:
         total_word_counts: Dict[int, torch.Tensor] = {}
         smoothed_conditional_probabilities: Dict[int, torch.Tensor]  = {} 
         n_classes = labels.size(0)
+        n_words = features.size(1)
 
-        for label in labels.unique():
+        for label in range(n_classes):
 
-            mask = (label == labels)
+            mask = (labels == label)
             class_features = features[mask]
-            label_bow = sum(class_features, dim=0)
-            label_total_words = sum(label_bow, dim=0)
+            label_bow = torch.sum(class_features, dim=0)
+            label_total_words = torch.sum(label_bow)
 
             class_word_counts[label] = label_bow
             total_word_counts[label] = label_total_words
 
         for label, bows in class_word_counts.items():
 
-            total_count = total_word_counts[class_label]
-            smoothed_conditional_probabilities[label] = (bows + delta) / (total_count + delta*n_classes)
+            total_count = total_word_counts[label]
+            smoothed_conditional_probabilities[label] = (bows + delta) / (total_count + delta*n_words)
 
         
 
@@ -115,20 +116,22 @@ class NaiveBayes:
             raise ValueError(
                 "Model must be trained before estimating class posteriors."
             )
-        # Calculate posterior based on priors and conditional probabilities of the words
-        log_posteriors: torch.Tensor = None
 
+        # Initialize the log posteriors with the log of the class priors
+        log_posteriors = torch.zeros(len(self.class_priors))
 
-        # Convert the dictionary of conditional probabilities to a tensor
-        log_conditional_probs = torch.stack([torch.log(word_probs) for word_probs in self.conditional_probabilities.values()], dim=0)
+        for label, prior in self.class_priors.items():
+            # Start with the log prior
+            log_posteriors[label] = torch.log(prior)
 
-        # Convert class priors to a tensor of log(prior)
-        log_class_priors = torch.log(torch.tensor(list(self.class_priors.values())))
+            # Add the log of the conditional probabilities for each word given the class
+            for i, word_count in enumerate(feature):
+                if word_count > 0:  # If the word is present in the feature
+                    log_posteriors[label] += torch.log(self.conditional_probabilities[label][i])
 
-        # Calculate the log posteriors for all classes using efficient tensor operations
-        log_posteriors = torch.sum(log_conditional_probs * features, dim=1) + log_class_priors
-
+        # Return the log posteriors for each class
         return log_posteriors
+
 
         
 
